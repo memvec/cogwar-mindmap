@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Cognitive Warfare: Mindmap</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2430;
+    --line:#2d3748; --text:#e6edf3; --muted:#8b98a9;
+    --root:#c9a227; --def:#3b82c4; --off:#c4503b; --fn:#5a9e86;
+    --tech:#7c6fc4; --human:#c47fa0; --strat:#b58a3a;
+    --legal:#cf6b5c; --infra:#4a9aa5; --proc:#9a8fb0; --partner:#6fa86f;
+    --edge:#39404d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+  #wrap{display:flex;height:100vh;width:100vw}
+  #graph{flex:1;position:relative;min-width:0}
+  svg{width:100%;height:100%;display:block;cursor:grab}
+  svg:active{cursor:grabbing}
+  .link{stroke:var(--edge);stroke-opacity:.55;fill:none;stroke-width:1.2px}
+  .node{cursor:pointer}
+  .node circle{stroke-width:1.6px;transition:r .15s ease}
+  .node text{font-size:12px;pointer-events:auto;cursor:pointer;paint-order:stroke;stroke:var(--bg);stroke-width:3.5px;stroke-linejoin:round}
+  .node .lbl{fill:var(--text);font-weight:500}
+  .node .badge{font-size:9px;fill:var(--muted);font-weight:400}
+  .node.leaf .lbl{font-weight:400;fill:var(--muted)}
+  .collapsed circle{stroke-dasharray:2.5 2}
+
+  #top{position:absolute;top:0;left:0;right:0;padding:14px 18px;pointer-events:none;z-index:5}
+  #top h1{font-size:15px;font-weight:600;letter-spacing:.2px;max-width:680px;line-height:1.35}
+  #top p{font-size:12px;color:var(--muted);margin-top:4px;max-width:620px;line-height:1.5}
+  #ctrl{position:absolute;top:14px;right:18px;z-index:6;display:flex;gap:8px}
+  #ctrl button{background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:11px;padding:6px 10px;border-radius:6px;cursor:pointer}
+  #ctrl button:hover{color:var(--text);border-color:var(--muted)}
+  #legend{position:absolute;bottom:14px;left:14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:11px;z-index:5;max-width:210px}
+  #legend .row{display:flex;align-items:center;gap:7px;margin:3px 0;color:var(--muted)}
+  #legend i{width:11px;height:11px;border-radius:50%;display:inline-block;flex:none}
+  #legend hr{border:none;border-top:1px solid var(--line);margin:7px 0}
+  #hint{position:absolute;bottom:14px;right:14px;font-size:11px;color:var(--muted);z-index:5;text-align:right;line-height:1.6;pointer-events:none}
+
+  #panel{width:0;background:var(--panel);border-left:1px solid var(--line);overflow:hidden;transition:width .22s ease;flex:none}
+  #panel.open{width:390px}
+  #panel .inner{width:390px;height:100%;overflow-y:auto;padding:22px 22px 48px}
+  #panel .kicker{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  #panel h2{font-size:19px;font-weight:600;line-height:1.25;margin-bottom:12px}
+  #panel .sec{margin-top:18px}
+  #panel .sec h3{font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;border-bottom:1px solid var(--line);padding-bottom:5px}
+  #panel .sec p{font-size:13px;line-height:1.66;color:var(--text)}
+  #panel .tag{display:inline-block;font-size:10px;padding:2px 9px;border-radius:20px;margin-bottom:12px;font-weight:600}
+  #panel ul{list-style:none;margin-top:4px}
+  #panel li{font-size:13px;line-height:1.6;padding-left:14px;position:relative;margin:5px 0;color:var(--text)}
+  #panel li::before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--muted)}
+  #panel .refs{margin-top:18px}
+  #panel .refs h3{font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;border-bottom:1px solid var(--line);padding-bottom:5px}
+  #panel .refs ol{margin:0;padding-left:18px}
+  #panel .refs li{font-size:11.5px;line-height:1.5;color:var(--muted);padding-left:2px;margin:6px 0}
+  #panel .refs li::before{display:none}
+  #panel .refs a{color:var(--def);text-decoration:none}
+  #panel .refs a:hover{text-decoration:underline}
+  #close{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1}
+  #close:hover{color:var(--text)}
+  .placeholder{color:var(--muted);font-style:italic;font-size:12px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="graph">
+    <div id="top">
+      <h1>Cognitive Warfare System - Building it big.</h1>
+      <p>Tech, people, and strategy across the full spectrum. Click a node for cited notes · click a parent to fold / unfold · drag to pan · scroll to zoom.</p>
+    </div>
+    <div id="ctrl">
+      <button id="expandAll">Expand all</button>
+      <button id="collapseAll">Collapse</button>
+      <button id="fit">Fit</button>
+    </div>
+    <div id="legend">
+      <div class="row"><i style="background:var(--root)"></i>Central question</div>
+      <div class="row"><i style="background:var(--def)"></i>Defensive posture</div>
+      <div class="row"><i style="background:var(--off)"></i>Offensive posture</div>
+      <div class="row"><i style="background:var(--fn)"></i>Function</div>
+      <hr>
+      <div class="row"><i style="background:var(--tech)"></i>Tech category</div>
+      <div class="row"><i style="background:var(--human)"></i>Human category</div>
+      <div class="row"><i style="background:var(--strat)"></i>Strategy category</div>
+      <div class="row"><i style="background:var(--legal)"></i>Legal / authority</div>
+      <div class="row"><i style="background:var(--proc)"></i>Process</div>
+    </div>
+    <div id="hint">click node &#8594; notes &amp; references<br>click parent &#8594; fold branch</div>
+  </div>
+  <aside id="panel">
+    <div class="inner">
+      <button id="close">&times;</button>
+      <div id="pbody"></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* ===== Cognitive Warfare idea-map DATA (4 levels) =====
+   root -> posture -> function -> category -> leaf concept
+   Categories are free-form per function. Every node carries notes.
+*/
+const R = {
+  natoACT:{t:'NATO ACT — “Cognitive Warfare” exploratory concept', u:'https://www.act.nato.int/activities/cognitive-warfare/'},
+  natoDef:{t:'Claverie & du Cluzel, “The Cognitive Warfare Concept”, NATO ACT Innovation Hub', u:'https://innovationhub-act.org/wp-content/uploads/2023/12/CW-article-Claverie-du-Cluzel-final_0.pdf'},
+  threeW:{t:'“Three Warfares” — PLA Political Work Regulations (2003 revision)', u:'https://en.wikipedia.org/wiki/Three_warfares'},
+  ssf:{t:'Jamestown — “A Disturbance in the Force” (PLA SSF reorganization, Apr 2024)', u:'https://jamestown.org/a-disturbance-in-the-force-the-reorganization-of-peoples-liberation-army-command-and-elimination-of-chinas-strategic-support-force/'},
+  jdco:{t:'India — Joint Doctrine for Cyberspace Operations (CDS, Aug 2025)', u:'https://the420.in/india-cyber-doctrine-2025-challenges-integration-strategy/'},
+  dcya:{t:'Carnegie — “Mapping India’s Cybersecurity Administration in 2025”', u:'https://carnegieendowment.org/russia-eurasia/research/2025/09/mapping-indias-cybersecurity-administration-in-2025'},
+  reflex:{t:'Reflexive control — Soviet/Russian decision-shaping theory (V. Lefebvre)', u:'https://en.wikipedia.org/wiki/Reflexive_control'},
+  percep:{t:'Perception management — US DoD definition', u:'https://en.wikipedia.org/wiki/Perception_management'},
+  inoc:{t:'Roozenbeek & van der Linden — prebunking / inoculation across cultures (HKS Misinformation Review, 2020)', u:'https://misinforeview.hks.harvard.edu/article/global-vaccination-badnews/'},
+  inocField:{t:'Roozenbeek et al. — psychological inoculation at scale on YouTube (Science Advances, 2022)', u:'https://www.science.org/doi/10.1126/sciadv.abo6254'},
+  cib:{t:'Coordinated inauthentic behaviour — platform threat-reporting concept', u:'https://en.wikipedia.org/wiki/Coordinated_inauthentic_behavior'},
+  osint:{t:'Open-source intelligence (OSINT) — overview', u:'https://en.wikipedia.org/wiki/Open-source_intelligence'},
+  mildec:{t:'Military deception (MILDEC) — doctrinal overview', u:'https://en.wikipedia.org/wiki/Military_deception'},
+  miso:{t:'Military information support operations / PSYOP — overview', u:'https://en.wikipedia.org/wiki/Psychological_operations_(United_States)'},
+  deepfake:{t:'Deepfake detection — research overview', u:'https://en.wikipedia.org/wiki/Deepfake'}
+};
+
+function leaf(id, name, what, items, refs){
+  return {id, name, type:'leaf', notes:{what, items:items||[], refs:refs||[]}};
+}
+function cat(id, name, color, what, refs, children){
+  return {id, name, type:'cat', ccolor:color, notes:{what, refs:refs||[]}, children};
+}
+
+const C = { tech:'var(--tech)', human:'var(--human)', strat:'var(--strat)', legal:'var(--legal)', infra:'var(--infra)', proc:'var(--proc)', partner:'var(--partner)' };
+
+const DATA = {
+  id:'root', name:'Cognitive warfare system', type:'root',
+  notes:{
+    what:'With unlimited budget, talent, and political backing, how do we design a full-spectrum cognitive warfare capability? NATO Allied Command Transformation describes cognitive warfare as activities, synchronized with other instruments of power, to affect attitudes and behaviour by influencing, protecting, or disrupting cognition at the individual, group, or population level, to gain advantage over an adversary.',
+    items:[
+      'Two postures: Defensive (protect our cognition) and Offensive (shape the adversary’s)',
+      'Each posture runs the same functions with a different slant',
+      'Each function is resourced through free-form categories — tech, people, strategy, and where needed legal, infrastructure, process, partnerships',
+      'Comparators: NATO (contest over cognition); PLA (cognitive-domain ops / Three Warfares); Russia (reflexive control)'
+    ],
+    refs:[R.natoACT, R.natoDef, R.threeW, R.reflex]
+  },
+  children:[
+    /* =========================================================
+       DEFENSIVE
+       ========================================================= */
+    {
+      id:'def', name:'Defensive', type:'posture_def',
+      notes:{
+        what:'Protecting the cognition of our own population, forces, and decision-makers against adversary influence. In a democracy this is the larger, legally safer half — and the right phase to lead a government pitch with. NATO frames its own cognitive-warfare work primarily as building cognitive resilience and protecting decision-making from manipulation.',
+        items:['Legally cleaner than offensive operations','Builds whole-of-society resilience, not just a unit','Aligns with NATO’s stated defensive emphasis'],
+        refs:[R.natoACT]
+      },
+      children:[
+        /* ---------- DEFENSIVE / SENSE ---------- */
+        { id:'def-sense', name:'Sense', type:'fn',
+          notes:{slant:'threat detection', what:'Detect hostile influence campaigns aimed at us — early, at scale, with attribution. The radar of the defensive system. India’s 2025 Joint Doctrine for Cyberspace Operations calls for “threat-informed planning” and “real-time intelligence integration,” the doctrinal hook this answers.', refs:[R.jdco]},
+          children:[
+            cat('def-sense-collect','Collection', C.tech, 'The sensing apparatus that ingests the information environment.', [R.osint], [
+              leaf('def-sense-collect-listen','Multilingual listening','Always-on monitoring of social platforms, messaging, and broadcast across all relevant languages (Mandarin, Urdu, and Indian regional languages). The volume problem is why this is a tech, not a human, function at the collection stage.',['Platform + open-web + broadcast ingestion','Language coverage matched to the threat','Streaming, not batch'],[R.osint]),
+              leaf('def-sense-collect-osint','OSINT pipelines','Structured open-source intelligence collection feeding the rest of the stack. OSINT is the backbone of influence-campaign detection because the activity is, by design, public.',['Automated crawlers + APIs','De-duplication and normalization','Provenance capture for later attribution'],[R.osint])
+            ]),
+            cat('def-sense-detect','Detection', C.tech, 'Turning raw collection into flagged, suspicious activity.', [R.cib], [
+              leaf('def-sense-detect-cib','CIB detection','Identify coordinated inauthentic behaviour — networks of accounts acting together to fake grassroots consensus. The term comes from platform threat-reporting and is the workhorse signal of modern influence detection.',['Account-cluster and timing analysis','Bot / sock-puppet scoring','Cross-account narrative synchrony'],[R.cib]),
+              leaf('def-sense-detect-deepfake','Synthetic-media detection','Detect AI-generated images, audio, and video before they shape perception. An arms race — detectors and generators co-evolve — so this is a permanent capability, not a one-time build.',['Image / audio / video forensics','Model-watermark and artifact detection','Human-in-the-loop verification for high-stakes calls'],[R.deepfake])
+            ]),
+            cat('def-sense-attrib','Attribution', C.strat, 'Linking a detected campaign to an actor — the hard, judgement-heavy part.', [], [
+              leaf('def-sense-attrib-graph','Network attribution','Use cross-platform graph analytics to trace infrastructure, funding, and operator fingerprints back to a likely actor. Attribution is rarely certain; the deliverable is calibrated confidence, not proof.',['Infrastructure + behavioural fingerprinting','Confidence-graded assessments','Avoid premature public attribution']),
+              leaf('def-sense-attrib-fusion','Intel fusion','Combine influence-campaign signals with other intelligence streams (DIA, NTRO) so attribution is corroborated rather than standalone.',['Fuse OSINT with classified streams','De-conflict with existing agency reporting','Feed a single shared picture'],[R.dcya])
+            ]),
+            cat('def-sense-people','People', C.human, 'The analysts the machine cannot replace.', [], [
+              leaf('def-sense-people-lang','Language & region analysts','Native-level analysts who catch the connotation, sarcasm, and cultural subtext that models miss. The bottleneck capability for a country facing multilingual threats.',['Native fluency, not just translation','Regional cultural literacy','Rotation to avoid burnout']),
+              leaf('def-sense-people-eng','Data engineers','Engineers who keep the collection and detection pipelines alive at scale. Unglamorous and absolutely load-bearing.',['Pipeline reliability / uptime','Scaling to surge events','Model-ops for the detectors'])
+            ]),
+            cat('def-sense-watch','Watch process', C.proc, 'How sensing becomes a warning that reaches a decision-maker.', [], [
+              leaf('def-sense-watch-iw','Indications & warning','Pre-agreed thresholds that convert a detected pattern into an alert with a named owner. Without this, detection produces dashboards nobody acts on.',['Defined trigger thresholds','Named escalation owners','Time-to-warning targets']),
+              leaf('def-sense-watch-247','24×7 watch cell','A standing operations cell so detection works on the adversary’s timeline, not office hours.',['Round-the-clock staffing','Surge protocol','Hand-off discipline across shifts'])
+            ])
+          ]},
+        /* ---------- DEFENSIVE / UNDERSTAND ---------- */
+        { id:'def-und', name:'Understand', type:'fn',
+          notes:{slant:'vulnerability analysis', what:'Make sense of what was detected: which narrative, which audience, why it resonates with us, how dangerous. Converts raw detection into prioritized understanding so Protect actions are proportionate and not censorious.', refs:[]},
+          children:[
+            cat('def-und-narr','Narrative analysis', C.tech, 'What story is being told, and how it is framed.', [], [
+              leaf('def-und-narr-topic','Narrative & framing models','Cluster content into narratives and track how framing shifts over time. Lets you respond to a story, not chase individual posts.',['Topic / narrative clustering','Frame and stance detection','Narrative-evolution tracking']),
+              leaf('def-und-narr-spread','Spread mapping','Map how a narrative moves through the network — origin, amplifiers, super-spreaders. Identifies where an intervention would actually bite.',['Diffusion / cascade modelling','Super-spreader identification','Choke-point analysis'])
+            ]),
+            cat('def-und-aud','Audience analysis', C.human, 'Who is susceptible, and why.', [], [
+              leaf('def-und-aud-seg','Susceptibility segmentation','Identify which domestic audiences a given narrative is likely to move, so Protect efforts are targeted and proportionate. Handled carefully, this is resilience-building; handled carelessly, it edges toward profiling citizens — hence the human-judgement framing.',['Segment by exposure and susceptibility','Avoid intrusive individual profiling','Inform, do not manipulate']),
+              leaf('def-und-aud-fault','Fault-line mapping','Understand the social cleavages adversaries exploit (regional, linguistic, communal) so they can be reinforced against, not inflamed.',['Map exploitable cleavages','Identify resilience assets, not just weaknesses','Sociologist-led, ethically reviewed'])
+            ]),
+            cat('def-und-prior','Prioritization', C.strat, 'Deciding what actually warrants a response.', [], [
+              leaf('def-und-prior-rank','Risk ranking','Rank active campaigns by reach, resonance, and potential harm so finite response capacity goes to what matters. Most detected activity should be watched, not answered.',['Reach × resonance × harm scoring','Bias toward watching over reacting','Clear de-prioritization criteria']),
+              leaf('def-und-prior-thresh','Response thresholds','Define in advance what level of threat justifies what level of response — the guardrail against over-reaction and over-reach.',['Pre-agreed response tiers','Proportionality test','Documented rationale for acting'])
+            ])
+          ]},
+        /* ---------- DEFENSIVE / PROTECT ---------- */
+        { id:'def-protect', name:'Protect', type:'fn',
+          notes:{slant:'resilience & response', what:'Actually defend: build population resilience before attacks and respond during them. The payoff of the defensive side. In a democracy this must stay defensive — it cannot slide into managing or manipulating one’s own public, which is where “perception management” becomes legally and ethically fraught.', refs:[R.percep, R.inoc]},
+          children:[
+            cat('def-protect-resilience','Resilience (prebunking)', C.tech, 'Build mental resistance before an attack lands — the highest-leverage defensive investment.', [R.inoc, R.inocField], [
+              leaf('def-protect-resilience-inoc','Inoculation / prebunking','Pre-emptively expose people to weakened doses of manipulation techniques so they recognize them later — psychological “vaccination.” Inoculation theory dates to McGuire in the 1960s; modern gamified prebunking (Bad News, Go Viral!) shows measurable cross-cultural effects.',['Technique-based, not claim-by-claim','Gamified and video formats both work','Effects measurable but decay — needs boosters'],[R.inoc]),
+              leaf('def-protect-resilience-scale','Scaled delivery','Deliver prebunking at population scale. A landmark field experiment ran 90-second inoculation videos as YouTube pre-roll, reaching ~5.4M users at roughly $0.05/view with measurable improvement — evidence this scales cheaply.',['Ad-slot and platform delivery','Cost-per-effective-view as the metric','Refresh before effects decay'],[R.inocField])
+            ]),
+            cat('def-protect-response','Response', C.tech, 'Act during an active campaign.', [], [
+              leaf('def-protect-response-fact','Rapid verification','Fast, credible fact-checking and verification infrastructure. Note the asymmetry: falsehoods spread faster than corrections, so response alone always lags — which is why resilience comes first.',['Speed-to-credible-response','Pre-built verification workflows','Honest about correction’s limits']),
+              leaf('def-protect-response-channel','Trusted channels','Maintain credible, pre-established channels so authoritative information has somewhere to land during a crisis. Trust is built before the crisis, not during it.',['Pre-established credibility','Multi-language reach','Consistency over volume'])
+            ]),
+            cat('def-protect-literacy','Media literacy', C.human, 'The slow, durable layer — citizens who can defend themselves.', [], [
+              leaf('def-protect-literacy-edu','Education programs','Long-horizon media-literacy education embedding critical-thinking skills in the population. The cheapest defence per capita over a generation, and the least dependent on any agency.',['School + adult curricula','Technique-recognition focus','Independent of any single institution']),
+              leaf('def-protect-literacy-civil','Civil-society partners','Partner with independent media, fact-checkers, and NGOs. Distance from government is a feature — it preserves the credibility the message needs.',['Arms-length funding','Independence as credibility','Diverse, trusted messengers'])
+            ]),
+            cat('def-protect-legal','Authority & limits', C.legal, 'The guardrail that keeps a defensive program lawful and trusted.', [R.percep], [
+              leaf('def-protect-legal-bound','Civil–military boundary','Explicit limits keeping military cognitive capability from being turned on the domestic public. The single most important design constraint for a democracy.',['Hard external/domestic line','Statutory limits, not just policy','Independent oversight']),
+              leaf('def-protect-legal-transp','Transparency','Default to transparency about defensive programs, because a secret program to “protect” public opinion is indistinguishable from one to manage it — and will be treated as such once exposed.',['Public mandate where possible','Audit and reporting','Trust as a strategic asset'])
+            ])
+          ]}
+      ]
+    },
+    /* =========================================================
+       OFFENSIVE
+       ========================================================= */
+    {
+      id:'off', name:'Offensive', type:'posture_off',
+      notes:{
+        what:'Shaping the perception and decisions of adversaries — externally directed only. The legally and ethically loaded half: directing these techniques inward collides with constitutional limits, so governance is non-negotiable. India’s 2025 Joint Doctrine for Cyberspace Operations was its first official acknowledgement of an offensive military posture in the cyber domain; Operation Sindoor reportedly paired influence campaigns with cyber intrusions.',
+        items:['Externally directed only','Highest legal/ethical risk — gate behind oversight','Effectiveness genuinely hard to measure','PLA model: the “Three Warfares”'],
+        refs:[R.jdco, R.threeW]
+      },
+      children:[
+        /* ---------- OFFENSIVE / SENSE ---------- */
+        { id:'off-sense', name:'Sense', type:'fn',
+          notes:{slant:'target analysis', what:'The same sensing machinery aimed outward: understand the adversary’s information environment, audiences, and decision-makers as targets rather than threats to us.', refs:[R.osint]},
+          children:[
+            cat('off-sense-env','Environment mapping', C.tech, 'Chart the adversary information ecosystem.', [R.osint], [
+              leaf('off-sense-env-eco','Ecosystem mapping','Map the adversary’s media outlets, platforms, and information flows — the terrain on which influence will operate.',['Outlet + platform inventory','Information-flow mapping','State vs independent media split'],[R.osint]),
+              leaf('off-sense-env-infl','Influencer mapping','Identify who actually moves opinion in the target space — not always the obvious official voices.',['Network-centrality analysis','Authentic vs amplified influence','Reachable vs unreachable nodes'])
+            ]),
+            cat('off-sense-aud','Audience & leadership', C.human, 'Understand the people and decision-makers you intend to affect.', [], [
+              leaf('off-sense-aud-base','Audience baselining','Establish baseline sentiment so later change can be measured — the precondition for honest effects assessment downstream.',['Pre-campaign sentiment baseline','Segment the target audience','Define what “change” would look like']),
+              leaf('off-sense-aud-lead','Leadership perception','Understand how adversary decision-makers perceive their situation — the raw material for reflexive control later.',['Decision-maker belief mapping','Information they trust / distrust','Feeds the Understand stage'],[R.reflex])
+            ]),
+            cat('off-sense-target','Targeting logic', C.strat, 'Decide who to affect and to what end.', [], [
+              leaf('off-sense-target-sel','Audience selection','Choose target audiences deliberately and lawfully — external only — and prioritize by leverage.',['Externally-scoped targets only','Prioritize by strategic leverage','Document selection rationale']),
+              leaf('off-sense-target-end','Desired end-states','Define the perceptual or behavioural end-state each effort aims at, so success is definable rather than vibes.',['Concrete end-state per target','Linked to strategic objectives','Measurable where possible'])
+            ])
+          ]},
+        /* ---------- OFFENSIVE / UNDERSTAND ---------- */
+        { id:'off-und', name:'Understand', type:'fn',
+          notes:{slant:'exploitation modelling', what:'Model how the target thinks so influence can be designed: which narratives move which audiences, what leadership believes, where reflexive-control openings exist. Reflexive control — feeding an adversary selected information so they voluntarily choose what you want — is the Russian tradition here, traced to Vladimir Lefebvre.', refs:[R.reflex]},
+          children:[
+            cat('off-und-model','Modelling & simulation', C.tech, 'Test influence before deploying it.', [], [
+              leaf('off-und-model-sim','Audience-response simulation','Red-team messages against models of the target audience to predict reaction before anything goes live. Reduces blowback risk and wasted effort.',['Simulated audience reaction','Red-team / blue-team testing','Catch backfire before launch']),
+              leaf('off-und-model-llm','LLM message testing','Use language models to generate and stress-test message variants at scale across the target’s language and register. Powerful and risky — the same tooling adversaries use against us.',['Variant generation + testing','Register / dialect matching','Dual-use — tight controls needed'])
+            ]),
+            cat('off-und-mind','Mind modelling', C.human, 'Understand the target deeply enough to be credible, not clumsy.', [R.reflex], [
+              leaf('off-und-mind-cult','Cultural modelling','Anthropologists and area experts who ensure influence reads as native rather than foreign — the difference between credible and laughable.',['Deep cultural literacy','Avoid tin-ear messaging','Native validation']),
+              leaf('off-und-mind-dec','Decision modelling','Game-theoretic and behavioural modelling of how the adversary decides — the analytic core of reflexive control.',['Decision / game-theory models','Map beliefs to likely choices','Identify reflexive-control openings'],[R.reflex])
+            ]),
+            cat('off-und-eff','Effects logic', C.strat, 'The honesty layer — define and measure effect.', [], [
+              leaf('off-und-eff-meas','Measurable effects','Define what effect is sought and how it will be measured. This is genuinely hard; the field is littered with activity mistaken for impact. A mature program treats unmeasurable effects as a red flag.',['Effect defined before action','Measurement plan up front','Unmeasurable = suspect']),
+              leaf('off-und-eff-link','Link to objectives','Tie each intended effect to a real strategic objective, so influence serves policy rather than becoming theatre that justifies itself.',['Every effect maps to an objective','Cut activity with no objective','Resist effect-for-its-own-sake'])
+            ])
+          ]},
+        /* ---------- OFFENSIVE / INFLUENCE ---------- */
+        { id:'off-influence', name:'Influence', type:'fn',
+          notes:{slant:'shaping the adversary', what:'The act of shaping adversary perception and decisions: military deception, counter-narrative, and PSYOP against external targets. The sharp end — and where claims of effectiveness most outrun the evidence. The PLA’s Three Warfares (public-opinion, psychological, legal, codified 2003) is the most-studied state model.', refs:[R.threeW, R.miso]},
+          children:[
+            cat('off-influence-modes','Operation modes', C.strat, 'The recognized forms offensive influence takes.', [R.mildec, R.threeW], [
+              leaf('off-influence-modes-mildec','Military deception','Deceiving adversary command about capability, intent, or disposition — among the oldest and most legitimate forms of military influence, governed by laws of armed conflict.',['Targets adversary command','Lawful under LOAC when external','Coordinated with operations'],[R.mildec]),
+              leaf('off-influence-modes-cn','Counter-narrative','Contest hostile propaganda directly in the target space — answering the adversary’s story rather than letting it stand.',['Rebut, reframe, or pre-empt','Credibility over volume','Attributed where possible']),
+              leaf('off-influence-modes-psyop','PSYOP / MISO','Psychological operations directed at adversary forces or publics to affect morale and behaviour. Tightly regulated; externally scoped.',['Adversary forces / publics','Strict external scoping','Doctrine and ROE bound'],[R.miso])
+            ]),
+            cat('off-influence-prod','Production & delivery', C.tech, 'Make and move the content.', [], [
+              leaf('off-influence-prod-gen','Content production','Generative and traditional production tooling to create credible, native-quality content at speed and scale.',['Native-quality output','Speed + scale','Quality control before release']),
+              leaf('off-influence-prod-chan','Channel management','Manage overt and covert dissemination channels, with deliberate choices about attribution and deniability.',['Overt vs covert mix','Channel resilience','Attribution posture decided up front'])
+            ]),
+            cat('off-influence-people','Operators', C.human, 'The people who run it.', [], [
+              leaf('off-influence-people-op','Influence operators','Trained PSYOP / influence operators who plan and run campaigns within doctrine and law.',['Doctrine-trained','Disciplined execution','Ethics + legal grounding']),
+              leaf('off-influence-people-create','Creative producers','Native-language writers and producers who give content cultural authenticity — the credibility layer.',['Native-language creation','Cultural authenticity','Work with mind-modelling team'])
+            ]),
+            cat('off-influence-auth','Authority & assessment', C.legal, 'What keeps it lawful and honest.', [R.jdco], [
+              leaf('off-influence-auth-roe','Legal authority & ROE','Explicit legal authority and rules of engagement before any operation — the precondition, not the paperwork. India’s 2025 cyber doctrine begins to provide this scaffolding in the adjacent cyber domain.',['Authority before action','Clear ROE','Deconflict with diplomacy'],[R.jdco]),
+              leaf('off-influence-auth-assess','Effects assessment','Honest post-operation assessment of whether the intended effect occurred — the antidote to influence theatre. The willingness to conclude “it didn’t work” is what separates a serious program from a vanity one.',['Independent assessment','Willing to report failure','Feeds back into targeting'])
+            ])
+          ]}
+      ]
+    }
+  ]
+};
+
+</script>
+<script>
+const TYPECOLOR = {root:'var(--root)', posture_def:'var(--def)', posture_off:'var(--off)', fn:'var(--fn)'};
+function color(d){
+  if(d.data.type==='cat') return d.data.ccolor||'var(--muted)';
+  if(d.data.type==='leaf'){ let p=d.parent; return (p&&p.data.ccolor)||'var(--muted)'; }
+  return TYPECOLOR[d.data.type]||'var(--muted)';
+}
+function radius(d){
+  if(d.data.type==='root')return 12;
+  if(d.data.type==='posture_def'||d.data.type==='posture_off')return 9.5;
+  if(d.data.type==='fn')return 8;
+  if(d.data.type==='cat')return 6.5;
+  return 5;
+}
+
+const root = d3.hierarchy(DATA);
+// initial state: expand to functions, collapse below
+root.children && root.children.forEach(p=>{
+  if(p.children) p.children.forEach(fn=>{ collapse(fn); });
+});
+function collapse(d){ if(d.children){ d._children=d.children; d._children.forEach(collapse); d.children=null; } }
+
+const svg = d3.select('#graph').append('svg');
+const g = svg.append('g');
+let W = window.innerWidth, H = window.innerHeight;
+const zoom = d3.zoom().scaleExtent([.2,2.2]).on('zoom', e=>g.attr('transform', e.transform));
+svg.call(zoom);
+
+const gLink = g.append('g').attr('class','links');
+const gNode = g.append('g').attr('class','nodes');
+
+const dx = 22, dy = 165;
+const tree = d3.tree().nodeSize([dx, dy]);
+const diagonal = d3.linkHorizontal().x(d=>d.y).y(d=>d.x);
+
+let initialDone=false;
+function update(source){
+  tree(root);
+  let minX=Infinity,maxX=-Infinity,maxY=-Infinity;
+  root.each(d=>{ if(d.x<minX)minX=d.x; if(d.x>maxX)maxX=d.x; if(d.y>maxY)maxY=d.y; });
+
+  const links=root.links(), nodes=root.descendants();
+
+  const link = gLink.selectAll('path').data(links, d=>d.target.data.id);
+  link.enter().append('path').attr('class','link')
+    .attr('d', d=>{const o={x:source.x0??d.source.x,y:source.y0??d.source.y};return diagonal({source:o,target:o});})
+    .merge(link).transition().duration(250).attr('d', diagonal);
+  link.exit().transition().duration(250)
+    .attr('d', d=>{const o={x:source.x,y:source.y};return diagonal({source:o,target:o});}).remove();
+
+  const node = gNode.selectAll('g.node').data(nodes, d=>d.data.id);
+  const nEnter = node.enter().append('g')
+    .attr('class', d=>'node'+(d.data.type==='leaf'?' leaf':''))
+    .attr('transform', d=>`translate(${source.y0??d.y},${source.x0??d.x})`)
+    .on('click',(e,d)=>{ e.stopPropagation(); clicked(d); });
+  nEnter.append('circle').attr('r',1e-6);
+  nEnter.append('text').attr('class','lbl').attr('dy','.32em');
+  nEnter.append('text').attr('class','badge').attr('dy','1.5em');
+
+  const nMerge = nEnter.merge(node);
+  nMerge.transition().duration(250).attr('transform', d=>`translate(${d.y},${d.x})`);
+  nMerge.attr('class', d=>'node'+(d.data.type==='leaf'?' leaf':'')+(d._children?' collapsed':''));
+  nMerge.select('circle').attr('r',radius)
+    .attr('fill', d=> d._children?'var(--panel2)':color(d))
+    .attr('stroke', color);
+  const onLeft = d => (d.children||d._children) && d.depth>0;
+  nMerge.select('text.lbl')
+    .attr('x', d=> onLeft(d)?-(radius(d)+7):radius(d)+7)
+    .attr('text-anchor', d=> onLeft(d)?'end':'start')
+    .text(d=>d.data.name);
+  nMerge.select('text.badge')
+    .attr('x', d=> onLeft(d)?-(radius(d)+7):radius(d)+7)
+    .attr('text-anchor', d=> onLeft(d)?'end':'start')
+    .text(d=> d.data.notes&&d.data.notes.slant ? d.data.notes.slant : '');
+
+  node.exit().transition().duration(250)
+    .attr('transform', d=>`translate(${source.y},${source.x})`).remove();
+
+  root.each(d=>{ d.x0=d.x; d.y0=d.y; });
+
+  if(!initialDone){ initialDone=true; fitView(); }
+}
+
+function fitView(){
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  root.each(d=>{ if(d.x<minX)minX=d.x; if(d.x>maxX)maxX=d.x; if(d.y<minY)minY=d.y; if(d.y>maxY)maxY=d.y; });
+  const w=(maxY-minY)+360, h=(maxX-minX)+120;
+  const scale=Math.min(1, Math.min(W/w, H/h))*0.96;
+  const tx = 60 - minY*scale;
+  const ty = H/2 - ((minX+maxX)/2)*scale;
+  svg.transition().duration(350).call(zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(scale));
+}
+
+function clicked(d){
+  if(d.children){ d._children=d.children; d.children=null; }
+  else if(d._children){ d.children=d._children; d._children=null; }
+  update(d); openPanel(d);
+}
+
+document.getElementById('expandAll').onclick=()=>{ root.each(d=>{ if(d._children){d.children=d._children; d._children=null;} }); update(root); setTimeout(fitView,300); };
+document.getElementById('collapseAll').onclick=()=>{ root.children&&root.children.forEach(p=>{ p.children&&p.children.forEach(collapse); }); update(root); setTimeout(fitView,300); };
+document.getElementById('fit').onclick=fitView;
+
+const panel=document.getElementById('panel'), pbody=document.getElementById('pbody');
+document.getElementById('close').onclick=()=>panel.classList.remove('open');
+svg.on('click',()=>panel.classList.remove('open'));
+
+function postureLabel(t){ return t==='posture_def'?'Defensive':t==='posture_off'?'Offensive':''; }
+function ancestorPosture(d){ let n=d; while(n){ if(n.data.type==='posture_def'||n.data.type==='posture_off')return n.data.type; n=n.parent;} return null; }
+function ancestorFn(d){ let n=d; while(n){ if(n.data.type==='fn')return n.data.name; n=n.parent;} return null; }
+function typeKicker(d){
+  const t=d.data.type;
+  if(t==='root')return 'Central question';
+  if(t==='posture_def'||t==='posture_off')return 'Posture';
+  if(t==='fn')return 'Function · '+postureLabel(ancestorPosture(d));
+  if(t==='cat')return 'Category · '+ancestorFn(d)+' · '+postureLabel(ancestorPosture(d));
+  if(t==='leaf'){ const c=d.parent?d.parent.data.name:''; return c+' · '+ancestorFn(d)+' · '+postureLabel(ancestorPosture(d)); }
+  return '';
+}
+
+function openPanel(d){
+  const n=d.data.notes||{}; let html='';
+  html+='<div class="kicker">'+typeKicker(d)+'</div>';
+  html+='<h2>'+d.data.name+'</h2>';
+  if(n.slant){
+    const pt=ancestorPosture(d);
+    const col=pt==='posture_off'?'var(--off)':pt==='posture_def'?'var(--def)':'var(--fn)';
+    html+='<span class="tag" style="background:'+col+'22;color:'+col+'">'+postureLabel(pt).toLowerCase()+' slant — '+n.slant+'</span>';
+  }
+  if(n.what){ html+='<div class="sec"><h3>What it is</h3><p>'+n.what+'</p></div>'; }
+  if(n.items&&n.items.length){ html+='<div class="sec"><h3>Key elements</h3><ul>'; n.items.forEach(it=>html+='<li>'+it+'</li>'); html+='</ul></div>'; }
+  if(n.refs&&n.refs.length){ html+='<div class="refs"><h3>References</h3><ol>'; n.refs.forEach(r=>html+='<li><a href="'+r.u+'" target="_blank" rel="noopener">'+r.t+'</a></li>'); html+='</ol></div>'; }
+  if(!n.what&&!n.items){ html+='<p class="placeholder">Notes to be added.</p>'; }
+  pbody.innerHTML=html; panel.classList.add('open');
+}
+
+window.addEventListener('resize',()=>{ W=window.innerWidth; H=window.innerHeight; });
+root.x0=0; root.y0=0; update(root);
+setTimeout(()=>openPanel(root),350);
+</script>
+</body>
+</html>
